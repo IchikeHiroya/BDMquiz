@@ -4,6 +4,7 @@ import speech_recognition as sr
 import os
 import sys
 import subprocess
+import pygame  # pygameをインポート
 
 LOG_FILE = "debug_log.txt"  # デバッグ用ログファイル名
 
@@ -11,6 +12,7 @@ def log_to_file(message):
     """メッセージをログファイルに書き込む"""
     with open(LOG_FILE, "a", encoding="utf-8") as file:
         file.write(message + "\n")
+
 
 def handle_audio_device_conflict():
     """ターミナル操作で音声デバイスの競合を解消する"""
@@ -43,13 +45,11 @@ def recognize_speech():
             recognized_text = recognizer.recognize_google(audio, language='ja-JP')
             print(f"認識結果: {recognized_text}")
             log_to_file(f"認識結果: {recognized_text}")
-            handle_audio_device_conflict
             return recognized_text
         except sr.UnknownValueError:
             message = "音声を認識できませんでした。もう一度お試しください。"
             print(message)
             log_to_file(message)
-            handle_audio_device_conflict
             return None
         except sr.RequestError:
             message = "音声認識サービスに接続できません。"
@@ -60,8 +60,8 @@ def recognize_speech():
             message = "音声入力がタイムアウトしました。"
             print(message)
             log_to_file(message)
-    
             return None
+
 
 def load_quizzes(csv_file):
     """CSVファイルからクイズデータを読み込む"""
@@ -72,9 +72,48 @@ def load_quizzes(csv_file):
             quizzes.append({"id": row["id"], "question": row["question"], "answer": row["answer"]})
     return quizzes
 
+
+def preload_audio_files():
+    """音声ファイルを事前に読み込んでリストを作成"""
+    audio_files = {}
+    for i in range(1, 13):
+        audio_file = f"mondai{i}.wav"
+        if os.path.exists(audio_file):
+            audio_files[str(i)] = audio_file
+        else:
+            log_to_file(f"音声ファイルが見つかりません: {audio_file}")
+    return audio_files
+
+
+def play_question_audio(question_id, audio_files):
+    """問題文に対応する音声ファイルを再生する"""
+    audio_file = audio_files.get(question_id)
+    if audio_file:
+        print(f"問題文の音声を再生します: {audio_file}")
+        log_to_file(f"問題文の音声を再生します: {audio_file}")
+        try:
+            # pygame.mixerを使って音声を再生
+            pygame.mixer.init()  # pygameの音声モジュールを初期化
+            pygame.mixer.music.load(audio_file)  # 音声ファイルをロード
+            pygame.mixer.music.play()  # 再生
+            while pygame.mixer.music.get_busy():  # 音声の再生が終了するまで待つ
+                pygame.time.Clock().tick(10)
+        except Exception as e:
+            error_message = f"音声ファイルの再生中にエラーが発生しました: {e}"
+            print(error_message)
+            log_to_file(error_message)
+    else:
+        error_message = f"音声ファイルが見つかりません: ID {question_id}"
+        print(error_message)
+        log_to_file(error_message)
+
+
 def main():
     csv_file = "quizzes.csv"  # クイズデータを格納したCSVファイル名
     quizzes = load_quizzes(csv_file)
+
+    # 音声ファイルを事前に読み込み
+    audio_files = preload_audio_files()
 
     print("\nクイズゲームへようこそ！")
     log_to_file("\nクイズゲームへようこそ！")
@@ -91,6 +130,9 @@ def main():
             question_message = f"\n第{current_question_number}問\nクイズ: {quiz['question']}"
             print(question_message)
             log_to_file(question_message)
+
+            # 問題文音声を再生
+            play_question_audio(quiz['id'], audio_files)
 
             input_message = "準備ができたらEnterキーを押してください。"
             input(input_message)
@@ -136,7 +178,7 @@ def main():
                 continue
 
             next_action = next_action.strip()
-            if next_action in ["続ける", "もう一問","もう1問"]:
+            if next_action in ["続ける", "もう一問", "もう1問"]:
                 continue_message = "次の問題に進みます。"
                 print(continue_message)
                 log_to_file(continue_message)
@@ -146,6 +188,7 @@ def main():
                 print(end_message)
                 log_to_file(end_message)
                 break
+
 
 if __name__ == "__main__":
     main()
