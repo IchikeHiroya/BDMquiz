@@ -107,13 +107,48 @@ def play_question_audio(question_id, audio_files):
         print(error_message)
         log_to_file(error_message)
 
+def preload_audio_files_answer():
+    """音声ファイルを事前に読み込んでリストを作成"""
+    audio_files = {}
+    for i in range(1, 13):
+        audio_file = f"kaitou{i}.wav"
+        if os.path.exists(audio_file):
+            audio_files[str(i)] = audio_file
+        else:
+            log_to_file(f"音声ファイルが見つかりません: {audio_file}")
+    return audio_files
+
+
+def play_answer_audio(question_id, audio_files):
+    """問題文に対応する音声ファイルを再生する"""
+    audio_file = audio_files.get(question_id)
+    if audio_file:
+        print(f"問題文の音声を再生します: {audio_file}")
+        log_to_file(f"問題文の音声を再生します: {audio_file}")
+        try:
+            # pygame.mixerを使って音声を再生
+            pygame.mixer.init()  # pygameの音声モジュールを初期化
+            pygame.mixer.music.load(audio_file)  # 音声ファイルをロード
+            pygame.mixer.music.play()  # 再生
+            while pygame.mixer.music.get_busy():  # 音声の再生が終了するまで待つ
+                pygame.time.Clock().tick(10)
+        except Exception as e:
+            error_message = f"音声ファイルの再生中にエラーが発生しました: {e}"
+            print(error_message)
+            log_to_file(error_message)
+    else:
+        error_message = f"音声ファイルが見つかりません: ID {question_id}"
+        print(error_message)
+        log_to_file(error_message)
+
 
 def main():
     csv_file = "quizzes.csv"  # クイズデータを格納したCSVファイル名
     quizzes = load_quizzes(csv_file)
 
     # 音声ファイルを事前に読み込み
-    audio_files = preload_audio_files()
+    question_audio_files = preload_audio_files()
+    answer_audio_files = preload_audio_files_answer()
 
     print("\nクイズゲームへようこそ！")
     log_to_file("\nクイズゲームへようこそ！")
@@ -132,7 +167,7 @@ def main():
             log_to_file(question_message)
 
             # 問題文音声を再生
-            play_question_audio(quiz['id'], audio_files)
+            play_question_audio(quiz['id'], question_audio_files)
 
             input_message = "準備ができたらEnterキーを押してください。"
             input(input_message)
@@ -161,6 +196,7 @@ def main():
                 log_to_file(correct_message)
             else:
                 incorrect_message = f"不正解。正解は: {quiz['answer']}\n"
+                play_answer_audio(quiz['id'], answer_audio_files)
                 print(incorrect_message)
                 log_to_file(incorrect_message)
             status = "continue_check"
