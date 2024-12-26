@@ -3,6 +3,7 @@ import random
 import speech_recognition as sr
 import os
 import sys
+import subprocess
 
 def recognize_speech():
     """音声を認識し、テキストとして返す"""
@@ -13,6 +14,7 @@ def recognize_speech():
             audio = recognizer.listen(source, timeout=5)
             recognized_text = recognizer.recognize_google(audio, language='ja-JP')
             print(f"認識結果: {recognized_text}")
+            handle_audio_device_conflict()
             return recognized_text
         except sr.UnknownValueError:
             print("音声を認識できませんでした。もう一度お試しください。")
@@ -32,6 +34,24 @@ def load_quizzes(csv_file):
         for row in reader:
             quizzes.append({"id": row["id"], "question": row["question"], "answer": row["answer"]})
     return quizzes
+
+def handle_audio_device_conflict():
+    """ターミナル操作で音声デバイスの競合を解消する"""
+    try:
+        print("# ここでターミナル操作を行う")
+        result = subprocess.run(["fuser", "-v", "/dev/snd/*"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(result.stdout)
+
+        for line in result.stdout.splitlines():
+            if "/dev/snd/" in line:
+                parts = line.split()
+                if len(parts) >= 2:
+                    pid = parts[1]  # PIDを取得
+                    print(f"取得したPID: {pid}")
+                    subprocess.run(["kill", "-9", pid])  # プロセスを強制終了
+                    print(f"PID {pid} を強制終了しました。")
+    except Exception as e:
+        print(f"ターミナル操作中にエラーが発生しました: {e}")
 
 def main():
     csv_file = "quizzes.csv"  # クイズデータを格納したCSVファイル名
